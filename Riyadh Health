@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مخطط زيارات المنشآt الطبية</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50; --secondary-color: #3498db; --accent-color: #e74c3c;
+            --light-color: #ecf0f1; --dark-color: #34495e; --success-color: #27ae60;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f5f7fa; color: #333; line-height: 1.6; }
+        .container { display: flex; flex-direction: column; height: 100vh; max-width: 1800px; margin: 0 auto; padding: 15px; gap: 15px; }
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color)); color: white;
+            padding: 20px; text-align: center; border-radius: 10px; box-shadow: var(--shadow);
+            flex-shrink: 0;
+        }
+        header h1 { margin: 0; font-size: 24px; }
+        .main-content { display: grid; grid-template-columns: 1fr 450px; gap: 15px; flex-grow: 1; overflow: hidden; }
+        
+        .data-section { display: flex; flex-direction: column; overflow: hidden; background: var(--white); border-radius: 10px; box-shadow: var(--shadow); }
+        .sidebar { display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
+        
+        .map-container, .visit-plan-container {
+            background: white; border-radius: 10px; padding: 15px;
+            box-shadow: var(--shadow); display: flex; flex-direction: column;
+        }
+        .map-container { height: 45%; min-height: 250px; }
+        .visit-plan-container { flex-grow: 1; overflow: hidden; }
+        
+        #map { height: 100%; width: 100%; border-radius: 8px; flex-grow: 1; }
+        
+        .visit-plan-container h3 {
+            margin: 0 0 15px 0; color: var(--primary-color); border-bottom: 2px solid var(--light-color); padding-bottom: 10px;
+        }
+        #visitPlanList { list-style-type: none; padding: 0; margin: 0; overflow-y: auto; }
+        .visit-plan-item { display: flex; align-items: center; padding: 12px 5px; border-bottom: 1px solid var(--light-color); }
+        .visit-plan-name { flex-grow: 1; }
+        .distance-badge { font-size: 0.9em; font-weight: bold; color: var(--secondary-color); white-space: nowrap; }
+
+        .controls {
+            padding: 15px; border-bottom: 1px solid var(--border-color);
+            display: flex; flex-wrap: wrap; gap: 15px; align-items: center; flex-shrink: 0;
+        }
+        .search-box { flex: 1; min-width: 250px; position: relative; }
+        .search-box input { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 16px; }
+        .action-buttons { display: flex; gap: 10px; }
+        button {
+            padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-primary { background-color: var(--secondary-color); color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-secondary { background-color: var(--light-color); color: var(--dark-color); }
+
+        .data-table-wrapper { overflow: auto; flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
+        th { background-color: var(--light-color); font-weight: bold; position: sticky; top: 0; z-index: 1; }
+        tr:hover { background-color: #f9f9f9; }
+        .checkbox-cell { width: 50px; text-align: center; }
+        .status-active { color: var(--success-color); font-weight: bold; }
+        .no-data { text-align: center; padding: 30px; color: #7f8c8d; }
+        .empty-selection { text-align: center; padding: 20px; color: #7f8c8d; }
+
+        /* --- RESPONSIVE DESIGN FOR MOBILE --- */
+        @media (max-width: 992px) {
+            body { height: auto; }
+            .container { height: auto; }
+            .main-content {
+                grid-template-columns: 1fr; /* Stack columns */
+            }
+            .sidebar {
+                /* Re-order sidebar to be on top on mobile */
+                order: -1; 
+            }
+            .map-container { height: 300px; }
+            .visit-plan-container { max-height: 40vh; }
+            .data-section { height: 60vh; } /* Give table a fixed height to scroll within */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>مخطط زيارات المنشآt الطبية</h1></header>
+        
+        <div class="main-content">
+            <div class="data-section">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="ابحث...">
+                    </div>
+                    <div class="action-buttons">
+                        <button id="sortByLocationBtn" class="btn-primary">ترتيب المحدد حسب القرب</button>
+                        <button id="clearSelectionBtn" class="btn-secondary">إلغاء التحديد</button>
+                    </div>
+                </div>
+                <div class="data-table-wrapper">
+                    <table id="facilitiesTable">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell"><input type="checkbox" id="selectAll"></th>
+                                <th>اسم المنشأة</th>
+                                <th>نوع المنشأة</th>
+                                <th>رقم الترخيص</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+                <div class="visit-plan-container">
+                    <h3>خطة الزيارة</h3>
+                    <ul id="visitPlanList">
+                        <li class="empty-selection">اختر منشآt من الجدول لبدء خطتك</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script>
+        const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLGMBRnfan8fuSypkibQaRcEJU8TmUayNcQwyDb3O6xaAqYG3xyXHqQ8QDDF2fZgd5Y-W7kSvqiF-W/pub?gid=0&single=true&output=csv';
+        
+        let facilitiesData = [];
+        let selectedFacilities = new Set();
+        let userLocation = null;
+        let map = null;
+        let routingControl = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadData();
+            setupEventListeners();
+        });
+
+        function initMap() {
+            map = L.map('map').setView([24.7136, 46.6753], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            navigator.geolocation?.getCurrentPosition(pos => {
+                userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                L.marker(userLocation).addTo(map).bindPopup("<b>موقعك الحالي</b>");
+            });
+        }
+
+        function loadData() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = `<tr><td colspan="4" class="no-data">جاري تحميل البيانات...</td></tr>`;
+            Papa.parse(GOOGLE_SHEET_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    facilitiesData = results.data.map(row => {
+                        const lat = parseFloat(row.latitude);
+                        const lng = parseFloat(row.longitude);
+                        return (row['اسم المنشأة'] && !isNaN(lat) && !isNaN(lng)) ? {
+                            licenseNumber: row['رقم الترخيص'] || 'N/A',
+                            name: row['اسم المنشأة'],
+                            facilityType: row['نوع المنشأة'] || 'غير محدد',
+                            lat: lat,
+                            lng: lng,
+                        } : null;
+                    }).filter(Boolean);
+                    renderTable(facilitiesData);
+                },
+                error: (err) => {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="no-data">فشل تحميل البيانات.</td></tr>`;
+                }
+            });
+        }
+
+        function renderTable(data) {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            data.forEach(facility => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="checkbox-cell"><input type="checkbox" class="facility-checkbox" data-license="${facility.licenseNumber}"></td>
+                    <td>${facility.name}</td>
+                    <td>${facility.facilityType}</td>
+                    <td>${facility.licenseNumber}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            updateCheckboxes();
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const tableBody = document.getElementById('tableBody');
+            const sortByLocationBtn = document.getElementById('sortByLocationBtn');
+            const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.toLowerCase();
+                const filtered = facilitiesData.filter(f => 
+                    f.name.toLowerCase().includes(term) || 
+                    f.facilityType.toLowerCase().includes(term) ||
+                    f.licenseNumber.toLowerCase().includes(term)
+                );
+                renderTable(filtered);
+            });
+
+            selectAllCheckbox.addEventListener('change', (e) => {
+                document.querySelectorAll('#tableBody .facility-checkbox').forEach(cb => {
+                    cb.checked = e.target.checked;
+                    updateSelection(cb.dataset.license, e.target.checked);
+                });
+                updateVisitPlan();
+            });
+
+            tableBody.addEventListener('change', (e) => {
+                if (e.target.classList.contains('facility-checkbox')) {
+                    updateSelection(e.target.dataset.license, e.target.checked);
+                    updateVisitPlan();
+                }
+            });
+            
+            sortByLocationBtn.addEventListener('click', () => {
+                if (!userLocation) {
+                    alert('يرجى تمكين الوصول لموقعك أولاً.');
+                    return;
+                }
+                if (selectedFacilities.size < 2) {
+                    alert('يرجى تحديد منشأتين على الأقل لرسم المسار.');
+                    return;
+                }
+                updateVisitPlan(true); // true means sort
+            });
+
+            clearSelectionBtn.addEventListener('click', () => {
+                selectedFacilities.clear();
+                searchInput.value = '';
+                renderTable(facilitiesData);
+                updateVisitPlan();
+            });
+        }
+        
+        function updateSelection(license, isSelected) {
+            if (isSelected) selectedFacilities.add(license);
+            else selectedFacilities.delete(license);
+        }
+
+        function updateCheckboxes() {
+            document.querySelectorAll('.facility-checkbox').forEach(cb => {
+                cb.checked = selectedFacilities.has(cb.dataset.license);
+            });
+        }
+
+        function updateVisitPlan(sort = false) {
+            const visitPlanList = document.getElementById('visitPlanList');
+            visitPlanList.innerHTML = '';
+
+            let planItems = facilitiesData.filter(f => selectedFacilities.has(f.licenseNumber));
+
+            if (planItems.length === 0) {
+                visitPlanList.innerHTML = '<li class="empty-selection">اختر منشآt لبدء خطتك</li>';
+                if(routingControl) map.removeControl(routingControl);
+                routingControl = null;
+                return;
+            }
+
+            if (sort && userLocation) {
+                planItems.forEach(item => {
+                    item.distance = map.distance(L.latLng(userLocation.lat, userLocation.lng), L.latLng(item.lat, item.lng));
+                });
+                planItems.sort((a, b) => a.distance - b.distance);
+            }
+
+            planItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'visit-plan-item';
+                const distanceText = item.distance ? `<span class="distance-badge">${(item.distance / 1000).toFixed(1)} كم</span>` : '';
+                li.innerHTML = `<span class="visit-plan-name">${item.name}</span>${distanceText}`;
+                visitPlanList.appendChild(li);
+            });
+            
+            drawRoute(planItems);
+        }
+        
+        function drawRoute(items) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
+            if (items.length < 2) return;
+
+            const waypoints = items.map(item => L.latLng(item.lat, item.lng));
+
+            routingControl = L.Routing.control({
+                waypoints: waypoints,
+                routeWhileDragging: false,
+                addWaypoints: false,
+                show: false,
+                lineOptions: {
+                    styles: [{color: 'var(--accent-color)', opacity: 0.8, weight: 6}]
+                },
+                createMarker: function() { return null; } // Do not create A, B markers
+            }).addTo(map);
+        }
+
+    </script>
+</body>
+</html>
