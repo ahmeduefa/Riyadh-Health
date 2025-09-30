@@ -3,103 +3,618 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مخطط زيارات المنشآt الطبية</title>
+    <title>مخطط زيارات المنشآت الطبية</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
-            --primary-color: #2c3e50; --secondary-color: #3498db; --accent-color: #e74c3c;
-            --light-color: #ecf0f1; --dark-color: #34495e; --success-color: #27ae60;
+            --primary-color: #2c3e50; 
+            --secondary-color: #3498db; 
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1; 
+            --dark-color: #34495e; 
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
             --shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-hover: 0 8px 24px rgba(0,0,0,0.15);
+            --transition: all 0.3s ease;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #f5f7fa; color: #333; line-height: 1.6; }
-        .container { display: flex; flex-direction: column; height: 100vh; max-width: 1800px; margin: 0 auto; padding: 15px; gap: 15px; }
-        header {
-            background: linear-gradient(135deg, var(--primary-color), var(--dark-color)); color: white;
-            padding: 20px; text-align: center; border-radius: 10px; box-shadow: var(--shadow);
-            flex-shrink: 0;
-        }
-        header h1 { margin: 0; font-size: 24px; }
-        .main-content { display: grid; grid-template-columns: 1fr 450px; gap: 15px; flex-grow: 1; overflow: hidden; }
         
-        .data-section { display: flex; flex-direction: column; overflow: hidden; background: var(--white); border-radius: 10px; box-shadow: var(--shadow); }
-        .sidebar { display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%); 
+            color: #333; 
+            line-height: 1.6; 
+            min-height: 100vh;
+        }
+        
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            max-width: 1800px; 
+            margin: 0 auto; 
+            padding: 15px; 
+            gap: 15px; 
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color)); 
+            color: white;
+            padding: 20px; 
+            text-align: center; 
+            border-radius: 12px; 
+            box-shadow: var(--shadow);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            transform: translateX(-100%);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        header h1 { 
+            margin: 0; 
+            font-size: 26px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .main-content { 
+            display: grid; 
+            grid-template-columns: 1fr 450px; 
+            gap: 20px; 
+            flex-grow: 1; 
+            overflow: hidden; 
+        }
+        
+        .data-section { 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        
+        .data-section:hover {
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .sidebar { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            overflow: hidden; 
+        }
         
         .map-container, .visit-plan-container {
-            background: white; border-radius: 10px; padding: 15px;
-            box-shadow: var(--shadow); display: flex; flex-direction: column;
+            background: white; 
+            border-radius: 12px; 
+            padding: 20px;
+            box-shadow: var(--shadow); 
+            display: flex; 
+            flex-direction: column;
+            transition: var(--transition);
         }
-        .map-container { height: 45%; min-height: 250px; }
-        .visit-plan-container { flex-grow: 1; overflow: hidden; }
         
-        #map { height: 100%; width: 100%; border-radius: 8px; flex-grow: 1; }
+        .map-container:hover, .visit-plan-container:hover {
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .map-container { 
+            height: 45%; 
+            min-height: 250px; 
+            position: relative;
+        }
+        
+        .visit-plan-container { 
+            flex-grow: 1; 
+            overflow: hidden; 
+        }
+        
+        #map { 
+            height: 100%; 
+            width: 100%; 
+            border-radius: 8px; 
+            flex-grow: 1; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: var(--transition);
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .map-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--dark-color);
+        }
+        
+        .map-btn:hover {
+            background: var(--secondary-color);
+            color: white;
+            transform: scale(1.1);
+        }
         
         .visit-plan-container h3 {
-            margin: 0 0 15px 0; color: var(--primary-color); border-bottom: 2px solid var(--light-color); padding-bottom: 10px;
+            margin: 0 0 15px 0; 
+            color: var(--primary-color); 
+            border-bottom: 2px solid var(--light-color); 
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        #visitPlanList { list-style-type: none; padding: 0; margin: 0; overflow-y: auto; }
-        .visit-plan-item { display: flex; align-items: center; padding: 12px 5px; border-bottom: 1px solid var(--light-color); }
-        .visit-plan-name { flex-grow: 1; }
-        .distance-badge { font-size: 0.9em; font-weight: bold; color: var(--secondary-color); white-space: nowrap; }
+        
+        .visit-plan-container h3 i {
+            color: var(--secondary-color);
+        }
+        
+        #visitPlanList { 
+            list-style-type: none; 
+            padding: 0; 
+            margin: 0; 
+            overflow-y: auto; 
+            flex-grow: 1;
+        }
+        
+        .visit-plan-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 15px; 
+            border-bottom: 1px solid var(--light-color); 
+            transition: var(--transition);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+            cursor: grab;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .visit-plan-item::before {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: var(--secondary-color);
+            transform: scaleY(0);
+            transition: var(--transition);
+        }
+        
+        .visit-plan-item:hover::before {
+            transform: scaleY(1);
+        }
+        
+        .visit-plan-item:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: white;
+        }
+        
+        .visit-plan-item.dragging {
+            opacity: 0.7;
+            transform: rotate(3deg);
+        }
+        
+        .visit-plan-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--secondary-color);
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        
+        .visit-plan-name { 
+            flex-grow: 1; 
+            font-weight: 500;
+        }
+        
+        .distance-badge { 
+            font-size: 0.9em; 
+            font-weight: bold; 
+            color: var(--secondary-color); 
+            white-space: nowrap; 
+            background: rgba(52, 152, 219, 0.1);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        
+        .visit-plan-actions {
+            display: flex;
+            gap: 8px;
+            margin-right: 10px;
+        }
+        
+        .visit-plan-btn {
+            background: none;
+            border: none;
+            color: var(--dark-color);
+            cursor: pointer;
+            transition: var(--transition);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .visit-plan-btn:hover {
+            background: var(--light-color);
+            color: var(--accent-color);
+        }
 
         .controls {
-            padding: 15px; border-bottom: 1px solid var(--border-color);
-            display: flex; flex-wrap: wrap; gap: 15px; align-items: center; flex-shrink: 0;
+            padding: 20px; 
+            border-bottom: 1px solid #e0e0e0;
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+            align-items: center; 
+            flex-shrink: 0;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
         }
-        .search-box { flex: 1; min-width: 250px; position: relative; }
-        .search-box input { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 16px; }
-        .action-buttons { display: flex; gap: 10px; }
+        
+        .search-box { 
+            flex: 1; 
+            min-width: 250px; 
+            position: relative; 
+        }
+        
+        .search-box input { 
+            width: 100%; 
+            padding: 14px 45px 14px 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+        }
+        
+        .action-buttons { 
+            display: flex; 
+            gap: 12px; 
+        }
+        
         button {
-            padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
-            transition: all 0.3s;
+            padding: 14px 24px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .btn-primary { background-color: var(--secondary-color); color: white; }
-        .btn-primary:hover { background-color: #2980b9; }
-        .btn-secondary { background-color: var(--light-color); color: var(--dark-color); }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, var(--secondary-color), #2980b9); 
+            color: white; 
+        }
+        
+        .btn-primary:hover { 
+            background: linear-gradient(135deg, #2980b9, var(--secondary-color)); 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-secondary { 
+            background: var(--light-color); 
+            color: var(--dark-color); 
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #219653);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #219653, var(--success-color));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+        }
 
-        .data-table-wrapper { overflow: auto; flex-grow: 1; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
-        th { background-color: var(--light-color); font-weight: bold; position: sticky; top: 0; z-index: 1; }
-        tr:hover { background-color: #f9f9f9; }
-        .checkbox-cell { width: 50px; text-align: center; }
-        .status-active { color: var(--success-color); font-weight: bold; }
-        .no-data { text-align: center; padding: 30px; color: #7f8c8d; }
-        .empty-selection { text-align: center; padding: 20px; color: #7f8c8d; }
-
+        .data-table-wrapper { 
+            overflow: auto; 
+            flex-grow: 1; 
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        
+        th, td { 
+            padding: 16px; 
+            text-align: right; 
+            border-bottom: 1px solid #eee; 
+            white-space: nowrap; 
+        }
+        
+        th { 
+            background-color: var(--light-color); 
+            font-weight: bold; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1; 
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+        
+        th:hover {
+            background-color: #e0e7ee;
+        }
+        
+        tr { 
+            transition: var(--transition);
+        }
+        
+        tr:hover { 
+            background-color: #f5f9ff; 
+            transform: scale(1.002);
+        }
+        
+        .checkbox-cell { 
+            width: 50px; 
+            text-align: center; 
+        }
+        
+        .facility-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .facility-checkbox:checked {
+            accent-color: var(--secondary-color);
+        }
+        
+        .status-active { 
+            color: var(--success-color); 
+            font-weight: bold; 
+        }
+        
+        .no-data { 
+            text-align: center; 
+            padding: 40px; 
+            color: #7f8c8d; 
+        }
+        
+        .empty-selection { 
+            text-align: center; 
+            padding: 40px; 
+            color: #7f8c8d; 
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: var(--light-color);
+            border-radius: 0 0 12px 12px;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+        
+        .stats-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pulse {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        
         /* --- RESPONSIVE DESIGN FOR MOBILE --- */
         @media (max-width: 992px) {
             body { height: auto; }
             .container { height: auto; }
             .main-content {
-                grid-template-columns: 1fr; /* Stack columns */
+                grid-template-columns: 1fr;
             }
             .sidebar {
-                /* Re-order sidebar to be on top on mobile */
                 order: -1; 
             }
             .map-container { height: 300px; }
             .visit-plan-container { max-height: 40vh; }
-            .data-section { height: 60vh; } /* Give table a fixed height to scroll within */
+            .data-section { height: 60vh; }
+            .action-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            .search-box {
+                min-width: 100%;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+        
+        /* Loading animation */
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--dark-color);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: var(--transition);
+            z-index: 10000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        /* Route summary */
+        .route-summary {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .route-summary.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header><h1>مخطط زيارات المنشآt الطبية</h1></header>
+        <header>
+            <h1><i class="fas fa-map-marked-alt"></i> مخطط زيارات المنشآت الطبية</h1>
+        </header>
         
         <div class="main-content">
             <div class="data-section">
                 <div class="controls">
                     <div class="search-box">
-                        <input type="text" id="searchInput" placeholder="ابحث...">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="searchInput" placeholder="ابحث باسم المنشأة أو نوعها أو رقم الترخيص...">
                     </div>
                     <div class="action-buttons">
-                        <button id="sortByLocationBtn" class="btn-primary">ترتيب المحدد حسب القرب</button>
-                        <button id="clearSelectionBtn" class="btn-secondary">إلغاء التحديد</button>
+                        <button id="sortByLocationBtn" class="btn-primary">
+                            <i class="fas fa-route"></i>
+                            ترتيب حسب القرب
+                        </button>
+                        <button id="optimizeRouteBtn" class="btn-success">
+                            <i class="fas fa-magic"></i>
+                            تحسين المسار
+                        </button>
+                        <button id="clearSelectionBtn" class="btn-secondary">
+                            <i class="fas fa-times"></i>
+                            إلغاء التحديد
+                        </button>
                     </div>
                 </div>
                 <div class="data-table-wrapper">
@@ -107,29 +622,65 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"><input type="checkbox" id="selectAll"></th>
-                                <th>اسم المنشأة</th>
-                                <th>نوع المنشأة</th>
-                                <th>رقم الترخيص</th>
+                                <th>اسم المنشأة <i class="fas fa-sort"></i></th>
+                                <th>نوع المنشأة <i class="fas fa-sort"></i></th>
+                                <th>رقم الترخيص <i class="fas fa-sort"></i></th>
                             </tr>
                         </thead>
                         <tbody id="tableBody"></tbody>
                     </table>
                 </div>
+                <div class="stats-bar">
+                    <div class="stats-item">
+                        <span class="pulse"></span>
+                        <span id="totalCount">إجمالي المنشآت: 0</span>
+                    </div>
+                    <div class="stats-item">
+                        <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                        <span id="selectedCount">المحدد: 0</span>
+                    </div>
+                    <div class="stats-item">
+                        <i class="fas fa-road" style="color: var(--secondary-color);"></i>
+                        <span id="routeInfo">المسار: -</span>
+                    </div>
+                </div>
             </div>
             
             <div class="sidebar">
                 <div class="map-container">
+                    <div class="map-controls">
+                        <button class="map-btn" id="locateMeBtn" title="تحديد موقعي">
+                            <i class="fas fa-location-arrow"></i>
+                        </button>
+                        <button class="map-btn" id="zoomInBtn" title="تكبير">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="map-btn" id="zoomOutBtn" title="تصغير">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </div>
                     <div id="map"></div>
                 </div>
                 <div class="visit-plan-container">
-                    <h3>خطة الزيارة</h3>
+                    <h3><i class="fas fa-clipboard-list"></i> خطة الزيارة</h3>
                     <ul id="visitPlanList">
-                        <li class="empty-selection">اختر منشآt من الجدول لبدء خطتك</li>
+                        <li class="empty-selection">
+                            <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <div>اختر منشآت من الجدول لبدء خطتك</div>
+                        </li>
                     </ul>
+                    <div class="route-summary" id="routeSummary">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <strong>ملخص المسار:</strong>
+                        </div>
+                        <div id="routeDetails">المسافة: - | الوقت: -</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="toast" id="toast"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -142,25 +693,46 @@
         let userLocation = null;
         let map = null;
         let routingControl = null;
+        let currentMarkers = [];
+        let currentSort = { column: null, direction: 'asc' };
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadData();
             setupEventListeners();
+            updateStats();
         });
 
         function initMap() {
             map = L.map('map').setView([24.7136, 46.6753], 10);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            navigator.geolocation?.getCurrentPosition(pos => {
-                userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                L.marker(userLocation).addTo(map).bindPopup("<b>موقعك الحالي</b>");
-            });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Try to get user location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        L.marker(userLocation)
+                            .addTo(map)
+                            .bindPopup("<b>موقعك الحالي</b>")
+                            .openPopup();
+                            
+                        showToast('تم تحديد موقعك بنجاح', 'success');
+                    },
+                    error => {
+                        console.error('Error getting location:', error);
+                        showToast('تعذر تحديد موقعك. تأكد من تفعيل خدمة الموقع', 'error');
+                    }
+                );
+            }
         }
 
         function loadData() {
             const tableBody = document.getElementById('tableBody');
-            tableBody.innerHTML = `<tr><td colspan="4" class="no-data">جاري تحميل البيانات...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="4" class="no-data"><div class="loader"></div> جاري تحميل البيانات...</td></tr>`;
+            
             Papa.parse(GOOGLE_SHEET_URL, {
                 download: true,
                 header: true,
@@ -177,10 +749,14 @@
                             lng: lng,
                         } : null;
                     }).filter(Boolean);
+                    
                     renderTable(facilitiesData);
+                    updateStats();
+                    showToast(`تم تحميل ${facilitiesData.length} منشأة طبية`, 'success');
                 },
                 error: (err) => {
-                    tableBody.innerHTML = `<tr><td colspan="4" class="no-data">فشل تحميل البيانات.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="4" class="no-data"><i class="fas fa-exclamation-triangle"></i> فشل تحميل البيانات. يرجى المحاولة مرة أخرى.</td></tr>`;
+                    showToast('فشل تحميل البيانات', 'error');
                 }
             });
         }
@@ -188,17 +764,27 @@
         function renderTable(data) {
             const tableBody = document.getElementById('tableBody');
             tableBody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="no-data">لا توجد نتائج تطابق بحثك</td></tr>`;
+                return;
+            }
+            
             data.forEach(facility => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="checkbox-cell"><input type="checkbox" class="facility-checkbox" data-license="${facility.licenseNumber}"></td>
+                    <td class="checkbox-cell">
+                        <input type="checkbox" class="facility-checkbox" data-license="${facility.licenseNumber}">
+                    </td>
                     <td>${facility.name}</td>
                     <td>${facility.facilityType}</td>
                     <td>${facility.licenseNumber}</td>
                 `;
                 tableBody.appendChild(row);
             });
+            
             updateCheckboxes();
+            updateStats();
         }
 
         function setupEventListeners() {
@@ -206,8 +792,14 @@
             const selectAllCheckbox = document.getElementById('selectAll');
             const tableBody = document.getElementById('tableBody');
             const sortByLocationBtn = document.getElementById('sortByLocationBtn');
+            const optimizeRouteBtn = document.getElementById('optimizeRouteBtn');
             const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+            const locateMeBtn = document.getElementById('locateMeBtn');
+            const zoomInBtn = document.getElementById('zoomInBtn');
+            const zoomOutBtn = document.getElementById('zoomOutBtn');
+            const tableHeaders = document.querySelectorAll('th');
 
+            // Search functionality
             searchInput.addEventListener('input', () => {
                 const term = searchInput.value.toLowerCase();
                 const filtered = facilitiesData.filter(f => 
@@ -218,39 +810,191 @@
                 renderTable(filtered);
             });
 
+            // Select all checkbox
             selectAllCheckbox.addEventListener('change', (e) => {
-                document.querySelectorAll('#tableBody .facility-checkbox').forEach(cb => {
+                const checkboxes = document.querySelectorAll('#tableBody .facility-checkbox');
+                checkboxes.forEach(cb => {
                     cb.checked = e.target.checked;
                     updateSelection(cb.dataset.license, e.target.checked);
                 });
                 updateVisitPlan();
+                updateStats();
             });
 
+            // Individual checkbox selection
             tableBody.addEventListener('change', (e) => {
                 if (e.target.classList.contains('facility-checkbox')) {
                     updateSelection(e.target.dataset.license, e.target.checked);
                     updateVisitPlan();
+                    updateStats();
                 }
             });
             
+            // Sort by location
             sortByLocationBtn.addEventListener('click', () => {
                 if (!userLocation) {
-                    alert('يرجى تمكين الوصول لموقعك أولاً.');
+                    showToast('يرجى تمكين الوصول لموقعك أولاً.', 'error');
                     return;
                 }
                 if (selectedFacilities.size < 2) {
-                    alert('يرجى تحديد منشأتين على الأقل لرسم المسار.');
+                    showToast('يرجى تحديد منشأتين على الأقل لترتيب المسار.', 'error');
                     return;
                 }
-                updateVisitPlan(true); // true means sort
+                updateVisitPlan(true);
+                showToast('تم ترتيب المنشآت حسب القرب من موقعك', 'success');
             });
 
+            // Optimize route
+            optimizeRouteBtn.addEventListener('click', () => {
+                if (selectedFacilities.size < 2) {
+                    showToast('يرجى تحديد منشأتين على الأقل لتحسين المسار.', 'error');
+                    return;
+                }
+                optimizeRoute();
+                showToast('تم تحسين المسار ليكون الأكثر كفاءة', 'success');
+            });
+
+            // Clear selection
             clearSelectionBtn.addEventListener('click', () => {
                 selectedFacilities.clear();
                 searchInput.value = '';
                 renderTable(facilitiesData);
                 updateVisitPlan();
+                updateStats();
+                showToast('تم إلغاء التحديد', 'info');
             });
+
+            // Map controls
+            locateMeBtn.addEventListener('click', () => {
+                if (userLocation) {
+                    map.setView([userLocation.lat, userLocation.lng], 13);
+                    showToast('تم التمرير إلى موقعك', 'info');
+                } else {
+                    showToast('تعذر تحديد موقعك', 'error');
+                }
+            });
+
+            zoomInBtn.addEventListener('click', () => {
+                map.zoomIn();
+            });
+
+            zoomOutBtn.addEventListener('click', () => {
+                map.zoomOut();
+            });
+
+            // Table sorting
+            tableHeaders.forEach((header, index) => {
+                if (index > 0) { // Skip checkbox column
+                    header.style.cursor = 'pointer';
+                    header.addEventListener('click', () => {
+                        sortTable(index);
+                    });
+                }
+            });
+            
+            // Initialize drag and drop for visit plan
+            initDragAndDrop();
+        }
+        
+        function sortTable(columnIndex) {
+            const columns = ['name', 'facilityType', 'licenseNumber'];
+            const columnKey = columns[columnIndex - 1];
+            
+            if (currentSort.column === columnKey) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = columnKey;
+                currentSort.direction = 'asc';
+            }
+            
+            const sortedData = [...facilitiesData].sort((a, b) => {
+                let aValue = a[columnKey];
+                let bValue = b[columnKey];
+                
+                if (currentSort.direction === 'asc') {
+                    return aValue.localeCompare(bValue, 'ar');
+                } else {
+                    return bValue.localeCompare(aValue, 'ar');
+                }
+            });
+            
+            renderTable(sortedData);
+            
+            // Update sort indicators
+            document.querySelectorAll('th i.fas').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+            
+            const currentHeader = document.querySelectorAll('th')[columnIndex];
+            const icon = currentHeader.querySelector('i');
+            if (icon) {
+                icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            }
+        }
+        
+        function initDragAndDrop() {
+            const visitPlanList = document.getElementById('visitPlanList');
+            
+            visitPlanList.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('visit-plan-item')) {
+                    e.target.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', e.target.dataset.license);
+                }
+            });
+            
+            visitPlanList.addEventListener('dragend', (e) => {
+                if (e.target.classList.contains('visit-plan-item')) {
+                    e.target.classList.remove('dragging');
+                }
+            });
+            
+            visitPlanList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(visitPlanList, e.clientY);
+                const draggable = document.querySelector('.dragging');
+                if (draggable) {
+                    if (afterElement == null) {
+                        visitPlanList.appendChild(draggable);
+                    } else {
+                        visitPlanList.insertBefore(draggable, afterElement);
+                    }
+                }
+            });
+            
+            // Update the plan order after drop
+            visitPlanList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                updatePlanOrderFromDOM();
+                showToast('تم تعديل ترتيب الزيارة', 'info');
+            });
+        }
+        
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.visit-plan-item:not(.dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        function updatePlanOrderFromDOM() {
+            const visitPlanItems = document.querySelectorAll('#visitPlanList .visit-plan-item');
+            const newOrder = Array.from(visitPlanItems).map(item => item.dataset.license);
+            
+            // Reorder the selected facilities based on DOM order
+            const newSelected = new Set(newOrder);
+            selectedFacilities = newSelected;
+            
+            // Redraw the route with new order
+            drawRoute(Array.from(newSelected).map(license => 
+                facilitiesData.find(f => f.licenseNumber === license)
+            ));
         }
         
         function updateSelection(license, isSelected) {
@@ -262,6 +1006,13 @@
             document.querySelectorAll('.facility-checkbox').forEach(cb => {
                 cb.checked = selectedFacilities.has(cb.dataset.license);
             });
+            
+            // Update select all checkbox
+            const checkboxes = document.querySelectorAll('#tableBody .facility-checkbox');
+            const selectAll = document.getElementById('selectAll');
+            if (checkboxes.length > 0) {
+                selectAll.checked = Array.from(checkboxes).every(cb => cb.checked);
+            }
         }
 
         function updateVisitPlan(sort = false) {
@@ -271,9 +1022,14 @@
             let planItems = facilitiesData.filter(f => selectedFacilities.has(f.licenseNumber));
 
             if (planItems.length === 0) {
-                visitPlanList.innerHTML = '<li class="empty-selection">اختر منشآt لبدء خطتك</li>';
+                visitPlanList.innerHTML = `
+                    <li class="empty-selection">
+                        <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <div>اختر منشآت من الجدول لبدء خطتك</div>
+                    </li>`;
                 if(routingControl) map.removeControl(routingControl);
                 routingControl = null;
+                document.getElementById('routeSummary').classList.remove('show');
                 return;
             }
 
@@ -284,25 +1040,129 @@
                 planItems.sort((a, b) => a.distance - b.distance);
             }
 
-            planItems.forEach(item => {
+            planItems.forEach((item, index) => {
                 const li = document.createElement('li');
                 li.className = 'visit-plan-item';
+                li.draggable = true;
+                li.dataset.license = item.licenseNumber;
+                
                 const distanceText = item.distance ? `<span class="distance-badge">${(item.distance / 1000).toFixed(1)} كم</span>` : '';
-                li.innerHTML = `<span class="visit-plan-name">${item.name}</span>${distanceText}`;
+                li.innerHTML = `
+                    <div class="visit-plan-number">${index + 1}</div>
+                    <div class="visit-plan-name">${item.name}</div>
+                    <div class="visit-plan-actions">
+                        <button class="visit-plan-btn" onclick="removeFromPlan('${item.licenseNumber}')" title="إزالة من الخطة">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    ${distanceText}
+                `;
                 visitPlanList.appendChild(li);
             });
             
             drawRoute(planItems);
         }
         
+        function removeFromPlan(license) {
+            selectedFacilities.delete(license);
+            updateCheckboxes();
+            updateVisitPlan();
+            updateStats();
+            showToast('تمت إزالة المنشأة من الخطة', 'info');
+        }
+        
+        function optimizeRoute() {
+            let planItems = facilitiesData.filter(f => selectedFacilities.has(f.licenseNumber));
+            
+            if (planItems.length < 3) return;
+            
+            // Simple implementation of nearest neighbor algorithm for TSP
+            let unvisited = [...planItems];
+            let optimizedRoute = [];
+            
+            // Start from user location or first point
+            let currentPoint = userLocation ? 
+                {lat: userLocation.lat, lng: userLocation.lng} : 
+                {lat: unvisited[0].lat, lng: unvisited[0].lng};
+                
+            if (userLocation) {
+                // Find the closest facility to start from
+                unvisited.forEach(item => {
+                    item.distance = map.distance(L.latLng(currentPoint.lat, currentPoint.lng), L.latLng(item.lat, item.lng));
+                });
+                unvisited.sort((a, b) => a.distance - b.distance);
+            }
+            
+            while (unvisited.length > 0) {
+                // Find closest unvisited facility
+                let closestIndex = 0;
+                let closestDistance = map.distance(
+                    L.latLng(currentPoint.lat, currentPoint.lng), 
+                    L.latLng(unvisited[0].lat, unvisited[0].lng)
+                );
+                
+                for (let i = 1; i < unvisited.length; i++) {
+                    const distance = map.distance(
+                        L.latLng(currentPoint.lat, currentPoint.lng), 
+                        L.latLng(unvisited[i].lat, unvisited[i].lng)
+                    );
+                    
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestIndex = i;
+                    }
+                }
+                
+                optimizedRoute.push(unvisited[closestIndex]);
+                currentPoint = {lat: unvisited[closestIndex].lat, lng: unvisited[closestIndex].lng};
+                unvisited.splice(closestIndex, 1);
+            }
+            
+            // Update the selected facilities order
+            selectedFacilities = new Set(optimizedRoute.map(item => item.licenseNumber));
+            updateVisitPlan();
+        }
+        
         function drawRoute(items) {
+            // Clear existing route
             if (routingControl) {
                 map.removeControl(routingControl);
                 routingControl = null;
             }
+            
+            // Clear existing markers
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentMarkers = [];
+            
             if (items.length < 2) return;
 
+            // Add markers for each facility
+            items.forEach((item, index) => {
+                const marker = L.marker([item.lat, item.lng])
+                    .addTo(map)
+                    .bindPopup(`
+                        <b>${item.name}</b><br>
+                        <small>${item.facilityType}</small><br>
+                        <small>رقم الترخيص: ${item.licenseNumber}</small>
+                    `);
+                    
+                // Add number to marker
+                marker.bindTooltip(`${index + 1}`, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'marker-number'
+                });
+                
+                currentMarkers.push(marker);
+            });
+
+            // Create waypoints for routing
             const waypoints = items.map(item => L.latLng(item.lat, item.lng));
+            
+            // If we have user location, start from there
+            if (userLocation) {
+                waypoints.unshift(L.latLng(userLocation.lat, userLocation.lng));
+            }
 
             routingControl = L.Routing.control({
                 waypoints: waypoints,
@@ -314,8 +1174,53 @@
                 },
                 createMarker: function() { return null; } // Do not create A, B markers
             }).addTo(map);
+            
+            // Fit map to show all markers and route
+            const group = new L.featureGroup(currentMarkers);
+            map.fitBounds(group.getBounds().pad(0.1));
+            
+            // Show route summary
+            routingControl.on('routesfound', function(e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                
+                // Convert meters to kilometers and seconds to minutes
+                const distanceKm = (summary.totalDistance / 1000).toFixed(1);
+                const timeMinutes = Math.round(summary.totalTime / 60);
+                
+                document.getElementById('routeDetails').textContent = 
+                    `المسافة: ${distanceKm} كم | الوقت: ${timeMinutes} دقيقة`;
+                document.getElementById('routeSummary').classList.add('show');
+                
+                // Update route info in stats
+                document.getElementById('routeInfo').textContent = `المسار: ${distanceKm} كم`;
+            });
         }
-
+        
+        function updateStats() {
+            document.getElementById('totalCount').textContent = `إجمالي المنشآت: ${facilitiesData.length}`;
+            document.getElementById('selectedCount').textContent = `المحدد: ${selectedFacilities.size}`;
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            
+            // Set color based on type
+            if (type === 'success') {
+                toast.style.background = 'var(--success-color)';
+            } else if (type === 'error') {
+                toast.style.background = 'var(--accent-color)';
+            } else {
+                toast.style.background = 'var(--dark-color)';
+            }
+            
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
     </script>
 </body>
 </html>
